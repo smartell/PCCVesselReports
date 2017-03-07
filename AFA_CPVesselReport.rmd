@@ -1,0 +1,155 @@
+---
+title: Chinook Salmon Bycatch Status
+author: Sea State 
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  pdf_document:
+    fig_caption: true
+fontsize: 10pt
+geometry: margin=0.75in
+fig.env: graphicx
+---
+
+```{r global_options, include=FALSE, warning=FALSE, message=FALSE, echo=FALSE}
+knitr::opts_chunk$set(fig.width=7.0, fig.height=2.0, fig.path='Figs/',
+                      echo=FALSE, warning=FALSE, message=FALSE)
+library(pander)
+library(scales)
+library(tidyverse)
+
+	panderOptions('digits', 2)
+  panderOptions('round', 0)
+  panderOptions('keep.trailing.zeros', TRUE)
+  panderOptions('big.mark', ",")
+  panderOptions('keep.line.breaks', TRUE)
+
+```
+
+
+```{r,runScripts}
+  # Table with allocations & year to date catch
+  
+  # Find vessel associated with each company
+  t1 <- tmp %>% filter(Company == company)
+
+  t2 <- tmp %>% 
+        dplyr::filter(Vessel %in% t1$Vessel) %>%
+        dplyr::select(Company,Vessel,ChinookRateYtd:ChinookRateHardCap,
+                      PollockCatchYtd:ChinookCatchYtd,
+                      ChinookBalance,PollockBalance)
+
+
+  # print(as.character(QH))
+
+  AFA <- t2 %>% filter(grepl("AFA",Company)) %>% dplyr::select(-Company)
+  CDQ <- t2 %>% filter(grepl("CDQ",Company)) %>%
+          separate(Company,into=c("Type","Group"))
+```
+
+
+
+The company bycatch rate to date for all AFA-hauls combined is
+`r  t2 %>% 
+    dplyr::filter(grepl("AFA",Company)) %>%
+    dplyr::summarise(sum(ChinookCatchYtd)/sum(PollockCatchYtd)) %>%
+    round(3)
+`.
+
+The company bycatch rate to date for all CDQ-hauls combined is
+`r  t2 %>% 
+    dplyr::filter(grepl("CDQ",Company)) %>%
+    dplyr::summarise(sum(ChinookCatchYtd)/sum(PollockCatchYtd)) %>%
+    round(3)
+`.
+
+<!-- The company bycatch rate (**including CDQ**) must stay under  -->
+The company bycatch rate for PCC chinook must stay under 
+`r  
+  tmp %>% ungroup() %>%
+      dplyr::filter(grepl("AFA",Company),Company==company) %>%
+      dplyr::summarise((sum(ChinookBalance))/ sum(PollockBalance)) %>%
+      round(3)
+` to avoid exceeding the current A-season threshold allocations given to Sea State.
+<!-- to avoid exceeding the current A-season Chinook allocation. -->
+
+
+The company bycatch rate company must stay under
+`r  tmp %>% 
+      dplyr::filter(grepl("AFA",Company)) %>%
+      dplyr::group_by(Company) %>% 
+      dplyr::summarise(ChinookBalance=sum(ChinookBalance),PollockBalance=sum(PollockBalance)) %>% 
+      # dplyr::left_join(UnassignedAllocationTable,by=c("Company"="QuotaHolder")) %>%
+      dplyr::left_join(UnassignedChinook_A,by=c("Company"="QuotaHolder")) %>%
+      dplyr::filter(Company == company) %>%
+      dplyr::summarise(CompanyRate = sum(ChinookBalance + Unassigned)/sum(PollockBalance) )%>%
+      round(3)
+` to avoid exceeding current A-season PCC hard cap Chinook allocation (theshold allocations to vessels plus unassigned Chinook).
+
+
+Bycatch rate for PCC fish for the last 5 day period:
+`r Pcc5DayRate %>% round(3)`
+
+
+<!-- Table for the AFA hauls -->
+
+```{r,AfaCatchAndBalance}
+TBL1 <- AFA  %>% 
+  dplyr::select( Vessel,
+                'Pollock\ncatch' = PollockCatchYtd,
+                'Pollock\nbalance' = PollockBalance,
+                'Chinook\ncatch' = ChinookCatchYtd,
+                'Chinook\nbalance' = ChinookBalance,
+                'Ytd\nrate'=ChinookRateYtd,
+                'Threshold\nrate'=ChinookRateThreshold)
+                #'\n Hard cap'=ChinookRateHardCap )
+
+
+pander(TBL1,caption="AFA A-season Pollock catch & balance remaining (mt), Chinook catch & remaining balance, year-to-date Chinook bycatch rates, and the threshold rate required to finish the A-season.")
+```
+
+
+
+<!-- For the CDQ hauls. -->
+
+```{r,CdqRates}
+  TBL2 <- CDQ %>% 
+          dplyr::select( Group,Vessel,
+                      'Pollock\ncatch' = PollockCatchYtd,
+                      'Pollock\nbalance' = PollockBalance,
+                      'Chinook\ncatch' = ChinookCatchYtd,
+                      'Chinook\nbalance' = ChinookBalance,
+                      'Ytd\nrate'=ChinookRateYtd,
+                      'Threshold\nrate'=ChinookRateThreshold)
+
+  pander(TBL2,caption="CDQ A-season totals and Chinook bycatch rates for each Vessel's CDQ association.")
+```
+
+***
+
+Note the **threshold rate** is defined the rate from here on that you have to stay under to avoid exceeding threshold allocation.
+
+<!-- Time series of the Chinook rates for hauls by each vessel. -->
+
+```{r,plotRates}
+  # cat("Trends in Vessel rates for ",QH)
+  # print(head(AHT))
+  p1 <- AHT %>% 
+        dplyr::filter(ManagementProgram == company) %>% 
+        ggplot(aes(HaulDate,Rate)) + geom_point() + geom_smooth() + facet_wrap(~Vessel,scales="free_x") + labs(x="Date",y="Chinook rate (n/mt)")
+
+  # print(p1 + theme_bw(10) + theme(legend.position = "top"))
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
